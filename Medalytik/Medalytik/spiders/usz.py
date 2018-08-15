@@ -15,6 +15,8 @@ import scrapy
 from ..items import JobItem
 from . import error_back
 
+# Jelo
+
 
 class USZSpider(scrapy.Spider):
     name = 'usz'
