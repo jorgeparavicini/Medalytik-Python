@@ -7,6 +7,7 @@
 
 from datetime import datetime
 import pymongo
+from . import constants
 
 time_format = '%d %m %Y'
 
@@ -37,11 +38,9 @@ class MongoDBPipeline(object):
     DB_ENVIRONMENT = 'environment'
     DB_GROUP = 'group'
     DB_ID = '_id'
-    DB_INFO_ID = 'info_id'
     DB_INFO = 'info'
-    DB_INFO_PHONE = 'phone'
-    DB_INFO_MAIL = 'email'
-    DB_INFO_LAST_UPDATED = 'last_updated'
+    DB_INFO_PHONE = 'info_phone'
+    DB_INFO_MAIL = 'info_email'
     DB_LAST_UPDATED = 'last_updated'
     DB_OFFER = 'offer'
     DB_QUERY_IDS = 'query_ids'
@@ -99,7 +98,7 @@ class MongoDBPipeline(object):
     def from_crawler(cls, crawler):
         """Initiate the URI and database strings."""
         return cls(
-            mongo_uri=crawler.settings.get(MongoDBPipeline.MONGO_URI_SETTINGS_NAME),
+            mongo_uri=constants.MONGO_URI,
             mongo_db=crawler.settings.get(MongoDBPipeline.MONGO_DATABASE_SETTINGS_NAME)
         )
 
@@ -124,7 +123,6 @@ class MongoDBPipeline(object):
         region_ids = self.handle_regions(item)
         query_ids = self.handle_queries(item)
         contact_id = self.handle_contact(item)
-        info_id = self.handle_info(item)
 
         today = datetime.now().strftime(time_format)
 
@@ -140,7 +138,9 @@ class MongoDBPipeline(object):
             self.DB_DESCRIPTION: item.get(self.JOB_DESCRIPTION),
             self.DB_ENVIRONMENT: item.get(self.JOB_ENVIRONMENT),
             self.DB_GROUP: item.get(self.JOB_GROUP),
-            self.DB_INFO_ID: info_id,
+            self.DB_INFO: item.get(self.JOB_INFO),
+            self.DB_INFO_PHONE: item.get(self.JOB_INFO_PHONE),
+            self.DB_INFO_MAIL: item.get(self.JOB_INFO_MAIL),
             self.DB_LAST_UPDATED: today,
             self.DB_OFFER: item.get(self.JOB_OFFER),
             self.DB_REGION_IDS: region_ids,
@@ -291,31 +291,3 @@ class MongoDBPipeline(object):
         else:
             contact_dict[self.DB_QUERY_LAST_UPDATED] = today
             return self.db.Contacts.insert(contact_dict)
-
-    def handle_info(self, item):
-        """
-        Create a new info object.
-        Contains other information, about the employer (!Important! this is not the contact of the 'seller')
-        Also the email and the phone number which are not from the Sell Contact.
-        If one already exists, update the 'last updated' value to today.
-        :return: The '_id' of the object.
-        """
-        today = datetime.now().strftime(time_format)
-        info_dict = {
-            self.DB_INFO: item.get(self.JOB_INFO),
-            self.DB_INFO_PHONE: item.get(self.JOB_INFO_PHONE),
-            self.DB_INFO_MAIL: item.get(self.JOB_INFO_MAIL)
-        }
-
-        existing_info = self.db.Info.find_one(
-            info_dict
-        )
-        if existing_info:
-            self.db.Info.update(
-                {self.DB_ID: existing_info[self.DB_ID]},
-                {'$set': {self.DB_INFO_LAST_UPDATED: today}}
-            )
-            return existing_info[self.DB_ID]
-        else:
-            info_dict[self.DB_INFO_LAST_UPDATED] = today
-            return self.db.Info.insert(info_dict)

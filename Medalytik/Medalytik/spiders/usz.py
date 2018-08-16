@@ -15,14 +15,12 @@ import scrapy
 from ..items import JobItem
 from . import error_back
 
-# Jelo
-
 
 class USZSpider(scrapy.Spider):
     name = 'usz'
 
     def __init__(self, queries):
-        super().__init__()
+        super(USZSpider, self).__init__(self.name)
 
         self.url = 'http://jobs.usz.ch'
 
@@ -36,7 +34,8 @@ class USZSpider(scrapy.Spider):
         self.queries = queries.lstrip('[').rstrip(']').split(',')
         for i, query in enumerate(self.queries):
             self.queries[i] = query.strip()
-        print(self.queries)
+
+        self.parsed_jobs = []
 
     def start_requests(self):
         for query in self.queries:
@@ -114,6 +113,7 @@ class USZSpider(scrapy.Spider):
 
     def parse_job_website(self, response):
         job = response.meta['job']
+        job['url'] = response.request.url
         job = self.parse_date_availability(response, job)
         job = self.parse_description(response, job)
         job = self.parse_requirements(response, job)
@@ -152,7 +152,7 @@ class USZSpider(scrapy.Spider):
                 else:
                     description += '\n'
             description = '-' + re.sub(r'\n+', '\n-', description.strip())
-        job['desc'] = description
+        job['desc'] = description.strip()
         return job
 
     @staticmethod
@@ -173,7 +173,7 @@ class USZSpider(scrapy.Spider):
                 else:
                     requirements += '\n'
             requirements = '-' + re.sub(r'\n+', '\n-', requirements.strip())
-        job['requirements'] = requirements
+        job['requirements'] = requirements.strip()
         return job
 
     @staticmethod
@@ -269,9 +269,11 @@ class USZSpider(scrapy.Spider):
         benefits_list = response.xpath('//div[@class="benefit-text"]')
         benefits = []
         for benefit_container in benefits_list:
-            benefit = benefit_container.xpath('text()').extract_first()
+            benefit = benefit_container.xpath('text()').extract()
             if benefit:
-                benefits.append(benefit.strip())
+                benefit_string = "".join(benefit).strip()
+                benefits.append(benefit_string)
+                print(benefit_string)
         job['benefits'] = benefits
         return job
 

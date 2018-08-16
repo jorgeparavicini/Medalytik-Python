@@ -37,5 +37,5 @@ class JobItem(scrapy.Item):
     info_email = scrapy.Field()
 
     def __init__(self):
-        super().__init__()
+        super(JobItem, self).__init__()
         self['_identifier'] = 'job'

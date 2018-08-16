@@ -1,5 +1,6 @@
 setup.py
 Medalytik/__init__.py
+Medalytik/constants.py
 Medalytik/items.py
 Medalytik/middlewares.py
 Medalytik/pipelines.py

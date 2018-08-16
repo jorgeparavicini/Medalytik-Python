@@ -90,5 +90,5 @@ ITEM_PIPELINES = {
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Database configuration
-MONGO_URI = 'mongodb+srv://admin:8kEoh5ssIF28qKoY@medalytik-zjp96.mongodb.net/?retryWrites=true'
+
 MONGO_DB = 'Medalytik'

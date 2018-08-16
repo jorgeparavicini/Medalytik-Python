@@ -8,6 +8,7 @@
 from datetime import datetime
 import pymongo
 from . import constants
+import bson
 
 time_format = '%d %m %Y'
 
@@ -38,11 +39,9 @@ class MongoDBPipeline(object):
     DB_ENVIRONMENT = 'environment'
     DB_GROUP = 'group'
     DB_ID = '_id'
-    DB_INFO_ID = 'info_id'
     DB_INFO = 'info'
-    DB_INFO_PHONE = 'phone'
-    DB_INFO_MAIL = 'email'
-    DB_INFO_LAST_UPDATED = 'last_updated'
+    DB_INFO_PHONE = 'info_phone'
+    DB_INFO_MAIL = 'info_email'
     DB_LAST_UPDATED = 'last_updated'
     DB_OFFER = 'offer'
     DB_QUERY_IDS = 'query_ids'
@@ -95,6 +94,7 @@ class MongoDBPipeline(object):
         self.mongo_db = mongo_db
         self.client = None
         self.db = None
+        self.stored_items = {}
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -121,11 +121,20 @@ class MongoDBPipeline(object):
         First we handle all the objects, website, regions, queries, contact and info.
         Then add the id of each object to the job document.
         """
+        for stored_item, id in self.stored_items.items():
+            if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
+                    and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE):
+                # Item is already stored, just update the query.
+                new_query_ids = self.handle_queries(item)
+                old_query_ids = self.handle_queries(stored_item)
+                query_ids = list(set(new_query_ids) | set(old_query_ids))
+                self.db.Jobs.update_one({'_id': bson.ObjectId(id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
+                return
+
         website_id = self.handle_website(item)
         region_ids = self.handle_regions(item)
         query_ids = self.handle_queries(item)
         contact_id = self.handle_contact(item)
-        info_id = self.handle_info(item)
 
         today = datetime.now().strftime(time_format)
 
@@ -141,13 +150,16 @@ class MongoDBPipeline(object):
             self.DB_DESCRIPTION: item.get(self.JOB_DESCRIPTION),
             self.DB_ENVIRONMENT: item.get(self.JOB_ENVIRONMENT),
             self.DB_GROUP: item.get(self.JOB_GROUP),
-            self.DB_INFO_ID: info_id,
+            self.DB_INFO: item.get(self.JOB_INFO),
+            self.DB_INFO_PHONE: item.get(self.JOB_INFO_PHONE),
+            self.DB_INFO_MAIL: item.get(self.JOB_INFO_MAIL),
             self.DB_LAST_UPDATED: today,
             self.DB_OFFER: item.get(self.JOB_OFFER),
             self.DB_REGION_IDS: region_ids,
             self.DB_REQUIREMENTS: item.get(self.JOB_REQUIREMENTS),
             self.DB_SUMMARY: item.get(self.JOB_SUMMARY),
             self.DB_TITLE: item.get(self.JOB_TITLE),
+            self.DB_QUERY_IDS: query_ids,
             self.DB_URL: item.get(self.JOB_URL),
             self.DB_WEBSITE_ID: website_id,
         }
@@ -157,34 +169,21 @@ class MongoDBPipeline(object):
              self.DB_TITLE: item[self.JOB_TITLE]}
         )
 
-        if existing_job:
-            # Reset the queries each day. As the search terms may have changed.
-            if existing_job[self.DB_LAST_UPDATED] != today:
-                self.db.Jobs.update(
-                    {self.DB_ID: existing_job[self.DB_ID]},
-                    {'$set': {self.DB_QUERY_IDS: []}}
-                )
+        id = None
 
-            # Make sure to add the queries which are not present yet in the document.
-            for query in query_ids:
-                if query not in existing_job[self.DB_QUERY_IDS]:
-                    new_queries = existing_job[self.DB_QUERY_IDS]
-                    new_queries.append(query)
-                    self.db.Jobs.update(
-                        {self.DB_ID: existing_job[self.DB_ID]},
-                        {'$set': {self.DB_QUERY_IDS: new_queries}}
-                    )
+        if existing_job:
 
             # Now we need to update the rest of the job just in case something would have changed.
             self.db.Jobs.update(
                 {self.DB_ID: existing_job[self.DB_ID]},
                 {'$set': job_dict}
             )
+
+            id = existing_job["_id"]
         else:
-            # When we create a job we can safely add the queries,
-            # as we can't perform any checks whether the queries already exist.
-            job_dict[self.DB_QUERY_IDS] = query_ids
-            self.db.Jobs.insert(job_dict)
+            id = self.db.Jobs.insert(job_dict)
+
+        self.stored_items[item] = id
         return item
 
     def handle_website(self, item):
@@ -292,31 +291,3 @@ class MongoDBPipeline(object):
         else:
             contact_dict[self.DB_QUERY_LAST_UPDATED] = today
             return self.db.Contacts.insert(contact_dict)
-
-    def handle_info(self, item):
-        """
-        Create a new info object.
-        Contains other information, about the employer (!Important! this is not the contact of the 'seller')
-        Also the email and the phone number which are not from the Sell Contact.
-        If one already exists, update the 'last updated' value to today.
-        :return: The '_id' of the object.
-        """
-        today = datetime.now().strftime(time_format)
-        info_dict = {
-            self.DB_INFO: item.get(self.JOB_INFO),
-            self.DB_INFO_PHONE: item.get(self.JOB_INFO_PHONE),
-            self.DB_INFO_MAIL: item.get(self.JOB_INFO_MAIL)
-        }
-
-        existing_info = self.db.Info.find_one(
-            info_dict
-        )
-        if existing_info:
-            self.db.Info.update(
-                {self.DB_ID: existing_info[self.DB_ID]},
-                {'$set': {self.DB_INFO_LAST_UPDATED: today}}
-            )
-            return existing_info[self.DB_ID]
-        else:
-            info_dict[self.DB_INFO_LAST_UPDATED] = today
-            return self.db.Info.insert(info_dict)

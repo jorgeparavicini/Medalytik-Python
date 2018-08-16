@@ -20,7 +20,7 @@ class USZSpider(scrapy.Spider):
     name = 'usz'
 
     def __init__(self, queries):
-        super().__init__()
+        super(USZSpider, self).__init__(self.name)
 
         self.url = 'http://jobs.usz.ch'
 
@@ -112,6 +112,7 @@ class USZSpider(scrapy.Spider):
 
     def parse_job_website(self, response):
         job = response.meta['job']
+        job['url'] = response.request.url
         job = self.parse_date_availability(response, job)
         job = self.parse_description(response, job)
         job = self.parse_requirements(response, job)
@@ -150,7 +151,7 @@ class USZSpider(scrapy.Spider):
                 else:
                     description += '\n'
             description = '-' + re.sub(r'\n+', '\n-', description.strip())
-        job['desc'] = description
+        job['desc'] = description.strip()
         return job
 
     @staticmethod
@@ -171,7 +172,7 @@ class USZSpider(scrapy.Spider):
                 else:
                     requirements += '\n'
             requirements = '-' + re.sub(r'\n+', '\n-', requirements.strip())
-        job['requirements'] = requirements
+        job['requirements'] = requirements.strip()
         return job
 
     @staticmethod
