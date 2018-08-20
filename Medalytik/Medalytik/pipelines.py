@@ -27,6 +27,7 @@ class MongoDBPipeline(object):
     # -- DATABASE NAMES --
 
     DB_ABOUT = 'about'
+    DB_ACTIVE = 'active'
     DB_AREA = 'area'
     DB_BENEFITS = 'benefits'
     DB_CONTACT_ID = 'contact_id'
@@ -125,16 +126,16 @@ class MongoDBPipeline(object):
             if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
                     and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE):
                 # Item is already stored, just update the query.
-                new_query_ids = self.handle_queries(item)
-                old_query_ids = self.handle_queries(stored_item)
+                new_query_ids = self.queries_id(item)
+                old_query_ids = self.queries_id(stored_item)
                 query_ids = list(set(new_query_ids) | set(old_query_ids))
                 self.db.Jobs.update_one({'_id': bson.ObjectId(id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
                 return
 
-        website_id = self.handle_website(item)
-        region_ids = self.handle_regions(item)
-        query_ids = self.handle_queries(item)
-        contact_id = self.handle_contact(item)
+        website_id = self.website_id(item)
+        region_ids = self.regions_id(item)
+        query_ids = self.queries_id(item)
+        contact_id = self.contact_id(item)
 
         today = datetime.now().strftime(time_format)
 
@@ -143,6 +144,7 @@ class MongoDBPipeline(object):
         # So me have to make sure the queries are up to date each day.
         job_dict = {
             self.DB_AREA: item.get(self.JOB_ABOUT),
+            self.DB_ACTIVE: True,
             self.DB_ABOUT: item.get(self.JOB_AREA),
             self.DB_BENEFITS: item.get(self.JOB_BENEFITS),
             self.DB_CONTACT_ID: contact_id,
@@ -169,8 +171,6 @@ class MongoDBPipeline(object):
              self.DB_TITLE: item[self.JOB_TITLE]}
         )
 
-        id = None
-
         if existing_job:
 
             # Now we need to update the rest of the job just in case something would have changed.
@@ -184,9 +184,10 @@ class MongoDBPipeline(object):
             id = self.db.Jobs.insert(job_dict)
 
         self.stored_items[item] = id
+        self.obsolete_items()
         return item
 
-    def handle_website(self, item):
+    def website_id(self, item):
         """
         Creates the website document for the item passed.
         If the document already exists, the 'last updated' value will be updated to today.
@@ -217,7 +218,7 @@ class MongoDBPipeline(object):
                             self.DB_WEBSITE_LAST_UPDATED: today}
             return self.db.Websites.insert(website_dict)
 
-    def handle_regions(self, item):
+    def regions_id(self, item):
         """
         Create a new 'Region' object.
         If one with the same name already exists, update the 'last updated' to today.
@@ -241,7 +242,7 @@ class MongoDBPipeline(object):
                 region_ids.append(self.db.Regions.insert(region_dict))
         return region_ids
 
-    def handle_queries(self, item):
+    def queries_id(self, item):
         """
         Create a new 'query' object.
         If one already exists, update the 'last updated' value to today.
@@ -265,7 +266,7 @@ class MongoDBPipeline(object):
                 query_ids.append(query_id)
         return query_ids
 
-    def handle_contact(self, item):
+    def contact_id(self, item):
         """
         Create a new 'Contact' object.
         If one already exists, update the 'last updated' variable to today.
@@ -291,3 +292,14 @@ class MongoDBPipeline(object):
         else:
             contact_dict[self.DB_QUERY_LAST_UPDATED] = today
             return self.db.Contacts.insert(contact_dict)
+
+    def obsolete_items(self):
+        jobs = self.db.Jobs.find()
+        for job in jobs:
+            website_id = job[self.DB_WEBSITE_ID]
+            website = self.db.Websites.find_one({'_id': website_id})
+            active = website[self.DB_WEBSITE_LAST_UPDATED] != job[self.DB_LAST_UPDATED]
+            self.db.Jobs.update(
+                {self.DB_ID: job[self.DB_ID]},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
