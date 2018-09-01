@@ -111,25 +111,49 @@ class MongoDBPipeline(object):
         self.db = self.client[self.mongo_db]
 
     def close_spider(self, _):
-        """Close the connection to prevent memory leaks."""
+        """Close the connection to prevent memory leaks. Also removes any old items"""
+        self.obsolete_items()
         self.client.close()
 
     def process_item(self, item, _):
         """
-        Adds all the objects as documents {dictionary like json} to the database.
+        Adds all the objects as documents {json like objects} to the Mongo database.
         Since the MongoDB is not RDBMS we create it ourselves.
 
-        First we handle all the objects, website, regions, queries, contact and info.
-        Then add the id of each object to the job document.
+        The existing objects are:
+            - Websites
+            - Regions
+            - Queries
+            - Contacts
+            - Jobs
+
+        First we try to get the existing Mongo object for each of the previously listed objects.
+        If they do not exist we create a new Mongo object for each.
+        Each object handling function:
+            - website_id()
+            - regions_id()
+            - queries_id()
+            - contact_id()
+        Returns the id for the passed object.
+        This id is then stored along the Job.
+
+        Queries work differently as, multiple search terms can have the same job.
+        For this reason, if an already uploaded job comes through here, we just update the query parameter.
         """
-        for stored_item, id in self.stored_items.items():
+
+        # Check if the passed item is already stored.
+        # This way we only have to update the query parameter.
+        for stored_item, _id in self.stored_items.items():
+            # Since we can not check for every single attribute we just check for the title and the website name.
+            # If they are the same we treat the job as equals.
             if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
                     and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE):
+
                 # Item is already stored, just update the query.
                 new_query_ids = self.queries_id(item)
                 old_query_ids = self.queries_id(stored_item)
                 query_ids = list(set(new_query_ids) | set(old_query_ids))
-                self.db.Jobs.update_one({'_id': bson.ObjectId(id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
+                self.db.Jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
                 return
 
         website_id = self.website_id(item)
@@ -172,19 +196,17 @@ class MongoDBPipeline(object):
         )
 
         if existing_job:
-
-            # Now we need to update the rest of the job just in case something would have changed.
+            # Change the last updated only. This way we allow for user changes.
             self.db.Jobs.update(
                 {self.DB_ID: existing_job[self.DB_ID]},
-                {'$set': job_dict}
+                {'$set': {self.DB_LAST_UPDATED: today}}
             )
 
-            id = existing_job["_id"]
+            _id = existing_job[self.DB_ID]
         else:
-            id = self.db.Jobs.insert(job_dict)
+            _id = self.db.Jobs.insert(job_dict)
 
-        self.stored_items[item] = id
-        self.obsolete_items()
+        self.stored_items[item] = _id
         return item
 
     def website_id(self, item):

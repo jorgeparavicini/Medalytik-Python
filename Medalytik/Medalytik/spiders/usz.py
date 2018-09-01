@@ -15,6 +15,106 @@ import scrapy
 from ..items import JobItem
 from . import error_back
 
+query_id_map = {
+    "Administration/Direktion": "1146346",
+    "Administration/Einkauf": "1140494",
+    "Administration/Finanzen/Controlling": "1140495",
+    "Administration/Marketing/Kommunikation": "1140496",
+    "Administration/Projekte": "1140498",
+    "Administration/Verwaltung/Assistenz": "1140499",
+    "Administration/Human Resource Management": "1151355",
+    "Ärztliches Personal/Abdomen-Stoffwechsel": "1140501",
+    "Ärztliches Personal/Anästhesie": "1146347",
+    "Ärztliches Personal/Diverse": "1140502",
+    "Ärztliches Personal/Frau-Kind": "1146348",
+    "Ärztliches Personal/Herz-Gefäss-Thorax": "1140503",
+    "Ärztliches Personal/Innere Medizin-Onkologie": "1140504",
+    "Ärztliches Personal/Intensivpflege": "1140505",
+    "Ärztliches Personal/Neuro-Kopf": "1140506",
+    "Ärztliches Personal/OPS": "1146349",
+    "Ärztliches Personal/Trauma-Derma-Rheumatologie-Plastische Chirurgie und Notfallmedizin": "1140507",
+    "Ärztliches Personal/Diagnostik": "1146352",
+    "Bildung/Ausbildung & Weiterbildungen": "1140509",
+    "Bildung/Lehrstellen": "1140510",
+    "Bildung/Nachdiplomstudien (NDS)": "1140511",
+    "Bildung/Praktika": "1140512",
+    "Dipl. Pflegepersonal/Abdomen-Stoffwechsel": "1140514",
+    "Dipl. Pflegepersonal/Anästhesie": "1140515",
+    "Dipl. Pflegepersonal/Diverse": "1140156",
+    "Dipl. Pflegepersonal/Frau-Kind": "1140517",
+    "Dipl. Pflegepersonal/Herz-Gefäss-Thorax": "1140519",
+    "Dipl. Pflegepersonal/Innere Medizin-Onkologie": "1140521",
+    "Dipl. Pflegepersonal/Intensivpflege": "1140522",
+    "Dipl. Pflegepersonal/Neuro-Kopf": "1140524",
+    "Dipl. Pflegepersonal/OPS": "1140526",
+    "Dipl. Pflegepersonal/Trauma– Derma– Rheuma– Plastische Chirurgie und Notfallmedizin": "1140527",
+    "Dipl. Pflegepersonal/Diagnostik": "1146353",
+    "FaGe/MPA/Fachfrau/mann Gesundheit": "1140529",
+    "FaGe/MPA/Med. Praxisassistent/in": "1140530",
+    "FaGe/MPA/Zentrale Sterilisationsversorgung": "1140531",
+    "Forschung/Forschung": "1140533",
+    "Gastronomie/Hotelleries/Hauswirtschaft/Gastronomie/Hotelleries/Hauswirtschaft": "1140535",
+    "Med.-technisches & Med.-therapeutisches Personal/Biomedizinische Analytik": "1140537",
+    "Med.-technisches & Med.-therapeutisches Personal/Diverse": "1140538",
+    "Med.-technisches & Med.-therapeutisches Personal/Ergotherapie": "1146359",
+    "Med.-technisches & Med.-therapeutisches Personal/Medizinisch-technische Radiologie": "1140539",
+    "Med.-technisches & Med.-therapeutisches Personal/Physiotherapie": "1140540",
+    "Soziale Berufe/Soziale Berufe": "1140542",
+    "Technische Berufe/Informatik/Bau und Immobilien": "1140544",
+    "Technische Berufe/Informatik/Informatik": "1140545",
+    "Technische Berufe/Informatik/Technischer Dienst": "1140546"
+}
+
+id_query_name_map = {
+    "1146346": "Direktion",
+    "1140494": "Einkauf",
+    "1140495": "Controlling",
+    "1140496": "Marketing/Kommunikation",
+    "1140498": "Projekte",
+    "1140499": "Verwaltung/Assistenz",
+    "1151355": "Human Resource Management",
+    "1140501": "Abdomen-Stoffwechsel",
+    "1146347": "Anästhesie",
+    "1140502": "Diverse",
+    "1146348": "Frau-Kind",
+    "1140503": "Herz-Gefäss-Thorax",
+    "1140504": "Innere Medizin-Onkologie",
+    "1140505": "Intensivpflege",
+    "1140506": "Neuro-Kopf",
+    "1146349": "OPS",
+    "1140507": "Trauma-Derma-Rheumatologie-Plastische Chirurgie und Notfallmedizin",
+    "1146352": "Diagnostik",
+    "1140509": "Ausbildung & Weiterbildungen",
+    "1140510": "Lehrstellen",
+    "1140511": "Nachdiplomstudien (NDS)",
+    "1140512": "Praktika",
+    "1140514": "Abdomen-Stoffwechsel",
+    "1140515": "Anästhesie",
+    "1140156": "Diverse",
+    "1140517": "Frau-Kind",
+    "1140519": "Herz-Gefäss-Thorax",
+    "1140521": "Innere Medizin-Onkologie",
+    "1140522": "Intensivpflege",
+    "1140524": "Neuro-Kopf",
+    "1140526": "OPS",
+    "1140527": "Trauma– Derma– Rheuma– Plastische Chirurgie und Notfallmedizin",
+    "1146353": "Diagnostik",
+    "1140529": "Fachfrau/mann Gesundheit",
+    "1140530": "Med. Praxisassistent/in",
+    "1140531": "Zentrale Sterilisationsversorgung",
+    "1140533": "Forschung",
+    "1140535": "Gastronomie/Hotelleries/Hauswirtschaft",
+    "1140537": "Biomedizinische Analytik",
+    "1140538": "Diverse",
+    "1146359": "Ergotherapie",
+    "1140539": "Medizinisch-technische Radiologie",
+    "1140540": "Physiotherapie",
+    "1140542": "Soziale Berufe",
+    "1140544": "Bau und Immobilien",
+    "1140545": "Informatik",
+    "1140546": "Technischer Dienst"
+}
+
 
 class USZSpider(scrapy.Spider):
     name = 'usz'
@@ -28,31 +128,27 @@ class USZSpider(scrapy.Spider):
         self.website_url = self.url
         self.regions = ['Zürich']
 
-        # Always save the status. So we know if the website worked.
-        self.saved_status = False
         # Queries are passed as a list. Ex: ['Query1', 'Query2'].
-        self.queries = queries.lstrip('[').rstrip(']').split(',')
-        for i, query in enumerate(self.queries):
-            self.queries[i] = query.strip()
+        queries = queries.lstrip('[').rstrip(']').split(',')
+        self.queries = []
+        for query in queries:
+            self.queries.append(query_id_map[query.strip()])
 
         self.parsed_jobs = []
 
     def start_requests(self):
-        for query in self.queries:
-            yield scrapy.FormRequest(self.url,
-                                     callback=self.parse,
-                                     errback=error_back,
-                                     formdata={'query': query},
-                                     dont_filter=True,
-                                     meta={'query': query, 'offset': 0})
+        yield scrapy.FormRequest(self.url,
+                                 callback=self.parse,
+                                 errback=error_back,
+                                 formdata={'filter_10': self.queries},
+                                 dont_filter=True,
+                                 meta={'queries': self.queries, 'offset': 0})
 
     def parse(self, response):
-        self.save_status()
-
         job_container_xpath = '//*[@id="itemlist"]/div[1]/div'
         job_container_element = response.xpath(job_container_xpath)
         for job_container in job_container_element:
-            for element in self.parse_job_container(job_container, response.meta['query']):
+            for element in self.parse_job_container(job_container, response.meta['queries']):
                 yield element
 
         for element in self.load_next_page(response):
@@ -70,10 +166,10 @@ class USZSpider(scrapy.Spider):
             if next_page_class != 'disableClick':
                 offset = response.meta['offset'] + 10
                 yield scrapy.FormRequest(self.url,
-                                         formdata={'query': response.meta['query'],
+                                         formdata={'filter_10': response.meta['queries'],
                                                    'offset': offset,
                                                    },
-                                         meta={'query': response.meta['query'], 'offset': offset},
+                                         meta={'queries': response.meta['queries'], 'offset': offset},
                                          callback=self.parse,
                                          dont_filter=True,
                                          errback=error_back
@@ -83,11 +179,11 @@ class USZSpider(scrapy.Spider):
             # In case the extraction of the next page button fails, we assume there is no next page.
             return
 
-    def parse_job_container(self, job_container, query):
+    def parse_job_container(self, job_container, queries):
         job = JobItem()
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
-        job['queries'] = [query]
+        job['queries'] = [id_query_name_map[q] for q in queries]
         job['regions'] = self.regions
 
         # Make a null check before stripping the string, to prevent strip on none type errors.
@@ -276,8 +372,3 @@ class USZSpider(scrapy.Spider):
                 print(benefit_string)
         job['benefits'] = benefits
         return job
-
-    def save_status(self):
-        if not self.saved_status:
-            self.saved_status = True
-            yield {'status': 200}
