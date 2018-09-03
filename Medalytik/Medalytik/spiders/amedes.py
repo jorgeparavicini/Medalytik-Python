@@ -186,7 +186,7 @@ class AmedesSpider(scrapy.Spider):
 
     def parse_job_container(self, job_container, query):
         job = JobItem()
-        job['in_development'] = True
+        job['in_development'] = False
         job['website_name'] = "Amedes"
         job['website_url'] = "http://amedes-group.com"
         job['queries'] = [query_id_map[query]]
