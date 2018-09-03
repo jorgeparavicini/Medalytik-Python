@@ -141,6 +141,10 @@ class MongoDBPipeline(object):
         For this reason, if an already uploaded job comes through here, we just update the query parameter.
         """
 
+        # Push only jobs to the database which aren't in development
+        if item.get("in_development"):
+            return item
+
         # Check if the passed item is already stored.
         # This way we only have to update the query parameter.
         for stored_item, _id in self.stored_items.items():
@@ -320,7 +324,7 @@ class MongoDBPipeline(object):
         for job in jobs:
             website_id = job[self.DB_WEBSITE_ID]
             website = self.db.Websites.find_one({'_id': website_id})
-            active = website[self.DB_WEBSITE_LAST_UPDATED] != job[self.DB_LAST_UPDATED]
+            active = website[self.DB_WEBSITE_LAST_UPDATED] == job[self.DB_LAST_UPDATED]
             self.db.Jobs.update(
                 {self.DB_ID: job[self.DB_ID]},
                 {'$set': {self.DB_ACTIVE: active}}

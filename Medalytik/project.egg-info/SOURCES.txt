@@ -6,6 +6,7 @@ Medalytik/middlewares.py
 Medalytik/pipelines.py
 Medalytik/settings.py
 Medalytik/spiders/__init__.py
+Medalytik/spiders/amedes.py
 Medalytik/spiders/usz.py
 project.egg-info/PKG-INFO
 project.egg-info/SOURCES.txt

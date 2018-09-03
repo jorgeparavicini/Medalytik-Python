@@ -134,8 +134,6 @@ class USZSpider(scrapy.Spider):
         for query in queries:
             self.queries.append(query_id_map[query.strip()])
 
-        self.parsed_jobs = []
-
     def start_requests(self):
         yield scrapy.FormRequest(self.url,
                                  callback=self.parse,
@@ -181,12 +179,13 @@ class USZSpider(scrapy.Spider):
 
     def parse_job_container(self, job_container, queries):
         job = JobItem()
+        job['in_development'] = False
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
         job['queries'] = [id_query_name_map[q] for q in queries]
         job['regions'] = self.regions
 
-        # Make a null check before stripping the string, to prevent strip on none type errors.
+        # Make a null check before stripping the string, to prevent strip on none, type errors.
         title_container = job_container.xpath('div[1]/a/text()').extract_first()
         if title_container:
             job['title'] = title_container.strip()
@@ -204,7 +203,6 @@ class USZSpider(scrapy.Spider):
             job['summary'] = summary_container.strip()
 
         link = job_container.xpath('div[1]/a/@href').extract_first()
-
         yield scrapy.Request(url=link, callback=self.parse_job_website, dont_filter=True, meta={'job': job})
 
     def parse_job_website(self, response):

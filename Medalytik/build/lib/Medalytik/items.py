@@ -11,7 +11,7 @@ import scrapy
 
 
 class JobItem(scrapy.Item):
-    _identifier = scrapy.Field()
+    in_development = scrapy.Field()
     about = scrapy.Field()
     area = scrapy.Field()
     date_availability = scrapy.Field()
@@ -35,7 +35,3 @@ class JobItem(scrapy.Item):
     info = scrapy.Field()
     info_phone = scrapy.Field()
     info_email = scrapy.Field()
-
-    def __init__(self):
-        super(JobItem, self).__init__()
-        self['_identifier'] = 'job'
