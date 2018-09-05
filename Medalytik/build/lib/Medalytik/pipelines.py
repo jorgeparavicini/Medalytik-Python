@@ -151,14 +151,15 @@ class MongoDBPipeline(object):
             # Since we can not check for every single attribute we just check for the title and the website name.
             # If they are the same we treat the job as equals.
             if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
-                    and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE):
-
+                    and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE) \
+                    and item.get(self.JOB_DATE_AVAILABILITY) == stored_item.get(self.JOB_DATE_AVAILABILITY) \
+                    and item.get(self.JOB_REGIONS) == stored_item.get(self.JOB_REGIONS):
                 # Item is already stored, just update the query.
                 new_query_ids = self.queries_id(item)
                 old_query_ids = self.queries_id(stored_item)
                 query_ids = list(set(new_query_ids) | set(old_query_ids))
                 self.db.Jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
-                return
+                return item
 
         website_id = self.website_id(item)
         region_ids = self.regions_id(item)
@@ -226,17 +227,12 @@ class MongoDBPipeline(object):
         today = datetime.now().strftime(time_format)
 
         if existing_website:
-            # Just make sure there are no weird websites in the database.
-            assert existing_website[self.DB_WEBSITE_URL] == item.get(self.JOB_WEBSITE_URL),\
-                'Incorrect website url passed for website: {0}. URL: {1}'.format(item[self.JOB_WEBSITE_NAME],
-                                                                                 item[self.JOB_WEBSITE_URL])
             # Update last updated time.
             if existing_website[self.DB_WEBSITE_LAST_UPDATED] != today:
                 self.db.Websites.update(
                     {self.DB_ID: existing_website[self.DB_ID]},
                     {'$set': {self.DB_WEBSITE_LAST_UPDATED: today}}
                 )
-
             return existing_website[self.DB_ID]
         else:
             website_dict = {self.DB_WEBSITE_NAME: item.get(self.JOB_WEBSITE_NAME),

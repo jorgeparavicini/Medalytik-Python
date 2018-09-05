@@ -162,8 +162,6 @@ class AmedesSpider(scrapy.Spider):
                                            'page': 1})
 
     def parse(self, response):
-        from scrapy.shell import inspect_response
-        inspect_response(response, self)
         job_container_xpath = "//*[@class='dmmjobcontrol_list_item']"
         job_container_element = response.xpath(job_container_xpath)
         for job_container in job_container_element:
@@ -187,23 +185,23 @@ class AmedesSpider(scrapy.Spider):
     def parse_job_container(self, job_container, query):
         job = JobItem()
         job['in_development'] = False
-        job['website_name'] = "Amedes"
-        job['website_url'] = "http://amedes-group.com"
+        job['website_name'] = self.website_name
+        job['website_url'] = self.website_url
         job['queries'] = [query_id_map[query]]
 
-        region = job_container.xpath('//*[@class="dmmjobcontrol_list_regio"]').extract_first()
+        region = job_container.xpath('div[@class="dmmjobcontrol_list_regio"]').xpath("string()").extract_first()
         if region:
             job['regions'] = [region.strip()]
 
-        summary = job_container.xpath("//div[@class='dmmjobcontrol_list_short']").xpath("string()").extract_first()
+        summary = job_container.xpath("div[@class='dmmjobcontrol_list_short']").xpath("string()").extract_first()
         if summary:
             job['summary'] = summary.strip()
 
-        title = job_container.xpath("//div[@class='dmmjobcontrol_list_title']").xpath("string()").extract_first()
+        title = job_container.xpath("div[@class='dmmjobcontrol_list_title']").xpath("string()").extract_first()
         if title:
             job['title'] = title.strip()
 
-        link = job_container.xpath("//div[@class='dmmjobcontrol_list_title']").xpath("h2/a/@href").extract_first()
+        link = job_container.xpath("div[@class='dmmjobcontrol_list_title']").xpath("h2/a/@href").extract_first()
 
         yield scrapy.Request(url=link, callback=self.parse_job_website, dont_filter=True, meta={'job': job})
 
