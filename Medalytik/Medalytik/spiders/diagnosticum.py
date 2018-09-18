@@ -46,11 +46,6 @@ class DiagnosticumSpider(scrapy.Spider):
     @staticmethod
     def parse_body(body_element, job):
         body_elements = body_element.xpath('div/child::*')
-        """job['summary'] = body_elements[0].xpath("string()").extract_first()
-        job['offer'] = body_elements[1].xpath("string()").extract_first()
-    #print(body_elements[3])
-        job['desc'] = '- ' + '\n- '.join(body_elements[3].xpath("text()").extract())
-"""
 
         summary_finished = False
         summary = ""
@@ -61,11 +56,11 @@ class DiagnosticumSpider(scrapy.Spider):
             if selector.xpath('strong'):
                 summary_finished = True
                 section = selector.xpath('string()').extract_first()
-                if section == "Ihre Aufgaben":
+                if section == "Ihre Aufgaben" or section == "Ihre Aufgaben:":
                     job['desc'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
-                elif section == "Ihr Profil":
+                elif section == "Ihr Profil" or section == "Ihr Profil:":
                     job['requirements'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
-                elif section == "Unser Angebot":
+                elif section == "Unser Angebot" or section == "Ihre Chance:" or section == "Ihre Chance":
                     job['offer'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
                 elif section.startswith("Ihre Bewerbung"):
                     pass
@@ -82,11 +77,10 @@ class DiagnosticumSpider(scrapy.Spider):
                     postal_re = re.compile(r'[0-9]{3,}')
                     tel_re = re.compile(r'^Tel\. \+')
                     for text in text_list:
-                        print(text)
                         if postal_re.match(text):
                             job['regions'] = [text.lstrip(digits).strip()]
                         elif tel_re.match(text):
-                            job['contact_phone'] = text
+                            job['contact_phone'] = text.split('\xa0', 1)[0]
 
         job['summary'] = summary
 
