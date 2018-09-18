@@ -135,18 +135,19 @@ class USZSpider(scrapy.Spider):
             self.queries.append(query_id_map[query.strip()])
 
     def start_requests(self):
-        yield scrapy.FormRequest(self.url,
-                                 callback=self.parse,
-                                 errback=error_back,
-                                 formdata={'filter_10': self.queries},
-                                 dont_filter=True,
-                                 meta={'queries': self.queries, 'offset': 0})
+        for query in self.queries:
+            yield scrapy.FormRequest(self.url,
+                                     callback=self.parse,
+                                     errback=error_back,
+                                     formdata={'filter_10': query},
+                                     dont_filter=True,
+                                     meta={'query': query, 'offset': 0})
 
     def parse(self, response):
         job_container_xpath = '//*[@id="itemlist"]/div[1]/div'
         job_container_element = response.xpath(job_container_xpath)
         for job_container in job_container_element:
-            for element in self.parse_job_container(job_container, response.meta['queries']):
+            for element in self.parse_job_container(job_container, response.meta['query']):
                 yield element
 
         for element in self.load_next_page(response):
@@ -164,10 +165,10 @@ class USZSpider(scrapy.Spider):
             if next_page_class != 'disableClick':
                 offset = response.meta['offset'] + 10
                 yield scrapy.FormRequest(self.url,
-                                         formdata={'filter_10': response.meta['queries'],
+                                         formdata={'filter_10': response.meta['query'],
                                                    'offset': offset,
                                                    },
-                                         meta={'queries': response.meta['queries'], 'offset': offset},
+                                         meta={'query': response.meta['query'], 'offset': offset},
                                          callback=self.parse,
                                          dont_filter=True,
                                          errback=error_back
@@ -177,12 +178,12 @@ class USZSpider(scrapy.Spider):
             # In case the extraction of the next page button fails, we assume there is no next page.
             return
 
-    def parse_job_container(self, job_container, queries):
+    def parse_job_container(self, job_container, query):
         job = JobItem()
         job['in_development'] = False
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
-        job['queries'] = [id_query_name_map[q] for q in queries]
+        job['queries'] = [id_query_name_map[query]]
         job['regions'] = self.regions
 
         # Make a null check before stripping the string, to prevent strip on none, type errors.

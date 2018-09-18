@@ -246,6 +246,9 @@ class MongoDBPipeline(object):
         If one with the same name already exists, update the 'last updated' to today.
         :return: The '_id' of the region.
         """
+        if not item.get(self.JOB_REGIONS):
+            return -1
+
         today = datetime.now().strftime(time_format)
         region_ids = []
         for region_name in item.get(self.JOB_REGIONS):
@@ -270,6 +273,9 @@ class MongoDBPipeline(object):
         If one already exists, update the 'last updated' value to today.
         :return: The '_id' of the object.
         """
+        if not item.get(self.JOB_QUERIES):
+            return
+
         today = datetime.now().strftime(time_format)
         query_ids = []
         for query_name in item.get(self.JOB_QUERIES):
@@ -294,6 +300,12 @@ class MongoDBPipeline(object):
         If one already exists, update the 'last updated' variable to today.
         :return: The '_id' of the object
         """
+        if not item.get(self.JOB_CONTACT_FIELD)\
+                and not item.get(self.JOB_CONTACT_MAIL) \
+                and not item.get(self.JOB_CONTACT_NAME) \
+                and not item.get(self.JOB_CONTACT_PHONE):
+            return -1
+
         today = datetime.now().strftime(time_format)
         contact_dict = {
             self.DB_CONTACT_NAME: item.get(self.JOB_CONTACT_NAME),
@@ -320,7 +332,10 @@ class MongoDBPipeline(object):
         for job in jobs:
             website_id = job[self.DB_WEBSITE_ID]
             website = self.db.Websites.find_one({'_id': website_id})
-            active = website[self.DB_WEBSITE_LAST_UPDATED] == job[self.DB_LAST_UPDATED]
+            if not website:
+                active = job[self.DB_LAST_UPDATED] == datetime.now().strftime(time_format)
+            else:
+                active = website[self.DB_WEBSITE_LAST_UPDATED] == job[self.DB_LAST_UPDATED]
             self.db.Jobs.update(
                 {self.DB_ID: job[self.DB_ID]},
                 {'$set': {self.DB_ACTIVE: active}}
