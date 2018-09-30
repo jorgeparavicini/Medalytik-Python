@@ -90,6 +90,10 @@ class MongoDBPipeline(object):
     JOB_WEBSITE_NAME = 'website_name'
     JOB_WEBSITE_URL = 'website_url'
 
+    @property
+    def today(self):
+        return datetime.now().strftime(time_format)
+
     def __init__(self, mongo_uri, mongo_db):
         self.mongo_uri = mongo_uri
         self.mongo_db = mongo_db
@@ -166,7 +170,7 @@ class MongoDBPipeline(object):
         query_ids = self.queries_id(item)
         contact_id = self.contact_id(item)
 
-        today = datetime.now().strftime(time_format)
+        today = self.today
 
         # Leave the query setting, since it is not complete.
         # A job can have multiple queries, but only one query is passed per item.
@@ -224,7 +228,7 @@ class MongoDBPipeline(object):
             {self.DB_WEBSITE_NAME: item.get(self.JOB_WEBSITE_NAME)}
         )
 
-        today = datetime.now().strftime(time_format)
+        today = self.today
 
         if existing_website:
             # Update last updated time.
@@ -249,7 +253,7 @@ class MongoDBPipeline(object):
         if not item.get(self.JOB_REGIONS):
             return -1
 
-        today = datetime.now().strftime(time_format)
+        today = self.today
         region_ids = []
         for region_name in item.get(self.JOB_REGIONS):
             existing_region = self.db.Regions.find_one(
@@ -276,7 +280,7 @@ class MongoDBPipeline(object):
         if not item.get(self.JOB_QUERIES):
             return
 
-        today = datetime.now().strftime(time_format)
+        today = self.today
         query_ids = []
         for query_name in item.get(self.JOB_QUERIES):
             existing_query = self.db.Queries.find_one(
@@ -306,7 +310,7 @@ class MongoDBPipeline(object):
                 and not item.get(self.JOB_CONTACT_PHONE):
             return -1
 
-        today = datetime.now().strftime(time_format)
+        today = self.today
         contact_dict = {
             self.DB_CONTACT_NAME: item.get(self.JOB_CONTACT_NAME),
             self.DB_CONTACT_PHONE: item.get(self.JOB_CONTACT_PHONE),
@@ -328,15 +332,53 @@ class MongoDBPipeline(object):
             return self.db.Contacts.insert(contact_dict)
 
     def obsolete_items(self):
+        self.obsolete_jobs()
+        self.obsolete_websites()
+        self.obsolete_regions()
+        self.obsolete_queries()
+        self.obsolete_contacts()
+
+    def obsolete_jobs(self):
         jobs = self.db.Jobs.find()
         for job in jobs:
-            website_id = job[self.DB_WEBSITE_ID]
-            website = self.db.Websites.find_one({'_id': website_id})
-            if not website:
-                active = job[self.DB_LAST_UPDATED] == datetime.now().strftime(time_format)
-            else:
-                active = website[self.DB_WEBSITE_LAST_UPDATED] == job[self.DB_LAST_UPDATED]
+            active = job[self.DB_LAST_UPDATED] == self.today
             self.db.Jobs.update(
                 {self.DB_ID: job[self.DB_ID]},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
+
+    def obsolete_websites(self):
+        websites = self.db.Websites.find()
+        for website in websites:
+            active = website[self.DB_LAST_UPDATED] == self.today
+            self.db.Websites.update(
+                {self.DB_ID: website[self.DB_ID]},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
+
+    def obsolete_regions(self):
+        regions = self.db.Regions.find()
+        for region in regions:
+            active = region[self.DB_LAST_UPDATED] == self.today
+            self.db.Regions.update(
+                {self.DB_ID: region[self.DB_ID]},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
+
+    def obsolete_queries(self):
+        queries = self.db.Queries.find()
+        for query in queries:
+            active = query[self.DB_LAST_UPDATED] == self.today
+            self.db.Queries.update(
+                {self.DB_ID: query[self.DB_ID]},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
+
+    def obsolete_contacts(self):
+        contacts = self.db.Contacts.find()
+        for contact in contacts:
+            active = contact[self.DB_LAST_UPDATED] == self.today
+            self.db.Contacts.update(
+                {self.DB_ID: contact[self.DB_ID]},
                 {'$set': {self.DB_ACTIVE: active}}
             )
