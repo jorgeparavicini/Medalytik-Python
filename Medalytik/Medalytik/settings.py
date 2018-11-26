@@ -91,4 +91,5 @@ ITEM_PIPELINES = {
 
 # Database configuration
 
-MONGO_DB = 'Medalytik'
+MONGO_RELEASE_DB = 'Medalytik'
+MONGO_DEBUG_DB = 'Medalytik'
