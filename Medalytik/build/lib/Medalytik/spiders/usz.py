@@ -193,10 +193,16 @@ class USZSpider(scrapy.Spider):
 
         group_container = job_container.xpath('div[2]/a/text()').extract_first()
         if group_container:
+            group_container = group_container.strip()
+            if group_container.startswith("Berufsgruppe:"):
+                group_container = group_container[13:]
             job['group'] = group_container.strip()
 
         area_container = job_container.xpath('div[3]/a/text()').extract_first()
         if area_container:
+            area_container = area_container.strip()
+            if area_container.startswith("Bereich:"):
+                area_container = area_container[8:]
             job['area'] = area_container.strip()
 
         summary_container = job_container.xpath('a/div/text()').extract_first()
@@ -368,6 +374,5 @@ class USZSpider(scrapy.Spider):
             if benefit:
                 benefit_string = "".join(benefit).strip()
                 benefits.append(benefit_string)
-                print(benefit_string)
-        job['benefits'] = benefits
+        job['benefits'] = "- " + "\n- ".join(benefits)
         return job

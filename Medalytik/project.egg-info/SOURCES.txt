@@ -1,8 +1,8 @@
 setup.py
 Medalytik/__init__.py
-Medalytik/constants.py
 Medalytik/items.py
 Medalytik/middlewares.py
+Medalytik/mongoConstants.py
 Medalytik/pipelines.py
 Medalytik/settings.py
 Medalytik/spiders/__init__.py

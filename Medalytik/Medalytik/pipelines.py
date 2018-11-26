@@ -134,14 +134,14 @@ class MongoDBPipeline(object):
         self.obsolete_database_object(self.debug_db.Contacts)
         self.obsolete_database_object(self.debug_db.Queries)
         self.obsolete_database_object(self.debug_db.Regions)
-        self.debug_db.close()
+        self.debug_client.close()
 
         self.obsolete_items(self.release_db)
         self.obsolete_database_object(self.release_db.Websites)
         self.obsolete_database_object(self.release_db.Contacts)
         self.obsolete_database_object(self.release_db.Queries)
         self.obsolete_database_object(self.release_db.Regions)
-        self.release_db.close()
+        self.release_client.close()
 
     def process_item(self, item, _):
         """
