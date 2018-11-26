@@ -193,9 +193,11 @@ class AmedesSpider(scrapy.Spider):
         if region:
             job['regions'] = [region.strip()]
 
+        """
         summary = job_container.xpath("div[@class='dmmjobcontrol_list_short']").xpath("string()").extract_first()
         if summary:
             job['summary'] = summary.strip()
+        """
 
         title = job_container.xpath("div[@class='dmmjobcontrol_list_title']").xpath("string()").extract_first()
         if title:

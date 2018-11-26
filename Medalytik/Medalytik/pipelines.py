@@ -35,6 +35,7 @@ class MongoDBPipeline(object):
     DB_CONTACT_PHONE = 'phone'
     DB_CONTACT_FIELD = 'field'
     DB_CONTACT_MAIL = 'email'
+    DB_CONTACT_LAST_UPDATED = 'last_updated'
     DB_DATE_AVAILABILITY = 'date_available'
     DB_DESCRIPTION = 'desc'
     DB_ENVIRONMENT = 'environment'
@@ -113,6 +114,10 @@ class MongoDBPipeline(object):
     def close_spider(self, _):
         """Close the connection to prevent memory leaks. Also removes any old items"""
         self.obsolete_items()
+        self.obsolete_database_object(self.db.Websites)
+        self.obsolete_database_object(self.db.Contacts)
+        self.obsolete_database_object(self.db.Queries)
+        self.obsolete_database_object(self.db.Regions)
         self.client.close()
 
     def process_item(self, item, _):
@@ -145,6 +150,8 @@ class MongoDBPipeline(object):
         if item.get("in_development"):
             return item
 
+        today = datetime.now().strftime(time_format)
+
         # Check if the passed item is already stored.
         # This way we only have to update the query parameter.
         for stored_item, _id in self.stored_items.items():
@@ -154,27 +161,25 @@ class MongoDBPipeline(object):
                     and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE) \
                     and item.get(self.JOB_DATE_AVAILABILITY) == stored_item.get(self.JOB_DATE_AVAILABILITY) \
                     and item.get(self.JOB_REGIONS) == stored_item.get(self.JOB_REGIONS):
-                # Item is already stored, just update the query.
+                # Item is already stored, just update the query and the date when it was updated. (Today)
                 new_query_ids = self.queries_id(item)
                 old_query_ids = self.queries_id(stored_item)
                 query_ids = list(set(new_query_ids) | set(old_query_ids))
+
                 self.db.Jobs.update_one({'_id': bson.ObjectId(_id)}, {'$set': {self.DB_QUERY_IDS: query_ids}})
                 return item
-
         website_id = self.website_id(item)
         region_ids = self.regions_id(item)
         query_ids = self.queries_id(item)
         contact_id = self.contact_id(item)
 
-        today = datetime.now().strftime(time_format)
-
         # Leave the query setting, since it is not complete.
         # A job can have multiple queries, but only one query is passed per item.
         # So me have to make sure the queries are up to date each day.
         job_dict = {
-            self.DB_AREA: item.get(self.JOB_ABOUT),
+            self.DB_AREA: item.get(self.JOB_AREA),
             self.DB_ACTIVE: True,
-            self.DB_ABOUT: item.get(self.JOB_AREA),
+            self.DB_ABOUT: item.get(self.JOB_ABOUT),
             self.DB_BENEFITS: item.get(self.JOB_BENEFITS),
             self.DB_CONTACT_ID: contact_id,
             self.DB_DATE_AVAILABILITY: item.get(self.JOB_DATE_AVAILABILITY),
@@ -203,10 +208,9 @@ class MongoDBPipeline(object):
         if existing_job:
             # Change the last updated only. This way we allow for user changes.
             self.db.Jobs.update(
-                {self.DB_ID: existing_job[self.DB_ID]},
-                {'$set': {self.DB_LAST_UPDATED: today}}
+                {self.DB_ID: bson.ObjectId(existing_job[self.DB_ID])},
+                {'$set': job_dict}
             )
-
             _id = existing_job[self.DB_ID]
         else:
             _id = self.db.Jobs.insert(job_dict)
@@ -220,11 +224,27 @@ class MongoDBPipeline(object):
         If the document already exists, the 'last updated' value will be updated to today.
         :return: The id of the website for the job.
         """
+
+        today = datetime.now().strftime(time_format)
+
+        if not item.get(self.JOB_WEBSITE_NAME):
+            existing_none_specified_website = self.db.Websites.find_one(
+                {self.DB_WEBSITE_NAME: "None Specified"}
+            )
+            if existing_none_specified_website:
+                self.db.Websites.update(
+                    {self.DB_ID: bson.ObjectId(existing_none_specified_website[self.DB_ID])},
+                    {'$set': {self.DB_WEBSITE_LAST_UPDATED: today}}
+                )
+                return existing_none_specified_website[self.DB_ID]
+            else:
+                none_website_specified_dict = {self.DB_WEBSITE_NAME: "None Specified",
+                                               self.DB_WEBSITE_LAST_UPDATED: today}
+                return self.db.Websites.insert(none_website_specified_dict)
+
         existing_website = self.db.Websites.find_one(
             {self.DB_WEBSITE_NAME: item.get(self.JOB_WEBSITE_NAME)}
         )
-
-        today = datetime.now().strftime(time_format)
 
         if existing_website:
             # Update last updated time.
@@ -246,10 +266,22 @@ class MongoDBPipeline(object):
         If one with the same name already exists, update the 'last updated' to today.
         :return: The '_id' of the region.
         """
-        if not item.get(self.JOB_REGIONS):
-            return -1
-
         today = datetime.now().strftime(time_format)
+
+        if not item.get(self.JOB_REGIONS):
+            existing_none_specified_region = self.db.Regions.find_one(
+                {self.DB_REGION_NAME: "None Specified"}
+            )
+            if existing_none_specified_region:
+                self.db.Regions.update(
+                    {self.DB_ID: bson.ObjectId(existing_none_specified_region[self.DB_ID])},
+                    {'$set': {self.DB_REGION_LAST_UPDATED: today}}
+                )
+                return [existing_none_specified_region[self.DB_ID]]
+            else:
+                none_region_specified_dict = {self.DB_REGION_NAME: "None Specified", self.DB_REGION_LAST_UPDATED: today}
+                return [self.db.Regions.insert(none_region_specified_dict)]
+
         region_ids = []
         for region_name in item.get(self.JOB_REGIONS):
             existing_region = self.db.Regions.find_one(
@@ -273,10 +305,22 @@ class MongoDBPipeline(object):
         If one already exists, update the 'last updated' value to today.
         :return: The '_id' of the object.
         """
-        if not item.get(self.JOB_QUERIES):
-            return
-
         today = datetime.now().strftime(time_format)
+
+        if not item.get(self.JOB_QUERIES):
+            existing_none_specified_query = self.db.Queries.find_one(
+                {self.DB_QUERY_NAME: "None Specified"}
+            )
+            if existing_none_specified_query:
+                self.db.Queries.update(
+                    {self.DB_ID: bson.ObjectId(existing_none_specified_query[self.DB_ID])},
+                    {'$set': {self.DB_WEBSITE_LAST_UPDATED: today}}
+                )
+                return [existing_none_specified_query[self.DB_ID]]
+            else:
+                none_query_specified_dict = {self.DB_QUERY_NAME: "None Specified", self.DB_QUERY_LAST_UPDATED: today}
+                return [self.db.Queries.insert(none_query_specified_dict)]
+
         query_ids = []
         for query_name in item.get(self.JOB_QUERIES):
             existing_query = self.db.Queries.find_one(
@@ -300,13 +344,26 @@ class MongoDBPipeline(object):
         If one already exists, update the 'last updated' variable to today.
         :return: The '_id' of the object
         """
+        today = datetime.now().strftime(time_format)
+
         if not item.get(self.JOB_CONTACT_FIELD)\
                 and not item.get(self.JOB_CONTACT_MAIL) \
                 and not item.get(self.JOB_CONTACT_NAME) \
                 and not item.get(self.JOB_CONTACT_PHONE):
-            return -1
+            existing_none_specified_contact = self.db.Contacts.find_one(
+                {self.DB_CONTACT_NAME: "None Specified"}
+            )
+            if existing_none_specified_contact:
+                self.db.Contacts.update(
+                    {self.DB_ID: bson.ObjectId(existing_none_specified_contact[self.DB_ID])},
+                    {'$set': {self.DB_CONTACT_LAST_UPDATED: today}}
+                )
+                return existing_none_specified_contact[self.DB_ID]
+            else:
+                none_contact_specified_dict = {self.DB_CONTACT_NAME: "None Specified",
+                                               self.DB_CONTACT_LAST_UPDATED: today}
+                return self.db.Contacts.insert(none_contact_specified_dict)
 
-        today = datetime.now().strftime(time_format)
         contact_dict = {
             self.DB_CONTACT_NAME: item.get(self.JOB_CONTACT_NAME),
             self.DB_CONTACT_PHONE: item.get(self.JOB_CONTACT_PHONE),
@@ -337,6 +394,17 @@ class MongoDBPipeline(object):
             else:
                 active = website[self.DB_WEBSITE_LAST_UPDATED] == job[self.DB_LAST_UPDATED]
             self.db.Jobs.update(
-                {self.DB_ID: job[self.DB_ID]},
+                {self.DB_ID: bson.ObjectId(job[self.DB_ID])},
+                {'$set': {self.DB_ACTIVE: active}}
+            )
+
+    def obsolete_database_object(self, db_obj):
+        objects = db_obj.find()
+        for cur_object in objects:
+            last_updated = cur_object[self.DB_LAST_UPDATED]
+            today = datetime.now().strftime(time_format)
+            active = last_updated == today
+            db_obj.update(
+                {self.DB_ID: bson.ObjectId(cur_object[self.DB_ID])},
                 {'$set': {self.DB_ACTIVE: active}}
             )

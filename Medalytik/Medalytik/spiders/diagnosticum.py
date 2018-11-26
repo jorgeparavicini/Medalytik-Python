@@ -4,6 +4,7 @@ from string import digits
 
 from ..items import JobItem
 
+
 class DiagnosticumSpider(scrapy.Spider):
     name = 'diagnosticum'
 
@@ -57,15 +58,21 @@ class DiagnosticumSpider(scrapy.Spider):
                 summary_finished = True
                 section = selector.xpath('string()').extract_first()
                 if section == "Ihre Aufgaben" or section == "Ihre Aufgaben:":
-                    job['desc'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
+                    job['desc'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract()).strip()
                 elif section == "Ihr Profil" or section == "Ihr Profil:":
-                    job['requirements'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
+                    job['requirements'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract()).strip()
                 elif section == "Unser Angebot" or section == "Ihre Chance:" or section == "Ihre Chance":
-                    job['offer'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract())
+                    job['offer'] = '- ' + '\n- '.join(body_elements[i + 1].xpath("li/text()").extract()).strip()
                 elif section.startswith("Ihre Bewerbung"):
                     pass
                 elif '@' in section:
                     job['contact_email'] = re.search(r'[\w\.-]+@[\w\.-]+', section).group(0)
+                elif section.startswith('Diagnosticum'):
+                    postal_re = re.compile(r'[0-9]{3,}')
+                    text_list = selector.xpath("text()").extract()
+                    for text in text_list:
+                        if postal_re.match(text):
+                            job['regions'] = [text.lstrip(digits).strip()]
                 else:
                     job['area'] = section
 
@@ -80,7 +87,7 @@ class DiagnosticumSpider(scrapy.Spider):
                         if postal_re.match(text):
                             job['regions'] = [text.lstrip(digits).strip()]
                         elif tel_re.match(text):
-                            job['contact_phone'] = text.split('\xa0', 1)[0]
+                            job['contact_phone'] = text.split(u'\xa0', 1)[0]
 
         job['summary'] = summary
 
