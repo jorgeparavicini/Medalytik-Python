@@ -31,7 +31,6 @@ class DiagnosticumSpider(scrapy.Spider):
     def parse_job(self, header_element, body_element):
         job = JobItem()
         job['in_development'] = False
-        job['queries'] = ["Default"]
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
         job = self.parse_header(header_element, job)
