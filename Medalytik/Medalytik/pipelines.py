@@ -9,8 +9,14 @@ from datetime import datetime
 import pymongo
 from . import mongoConstants
 import bson
+from geopy.geocoders import Nominatim
 
 time_format = '%d %m %Y'
+
+
+geolocation_map = {
+    "Halle": "Halle Deutschland"
+}
 
 
 class MongoDBPipeline(object):
@@ -23,6 +29,8 @@ class MongoDBPipeline(object):
     COLLECTION_NAME = 'Medalytik'
     MONGO_RELEASE_DATABASE_SETTINGS_NAME = 'MONGO_RELEASE_DB'
     MONGO_DEBUG_DATABASE_SETTINGS_NAME = 'MONGO_DEBUG_DB'
+
+    USER_AGENT = "Medalytik"
 
     # -- DATABASE NAMES --
 
@@ -51,6 +59,9 @@ class MongoDBPipeline(object):
     DB_QUERY_LAST_UPDATED = 'last_updated'
     DB_REGION_IDS = 'region_ids'
     DB_REGION_NAME = 'name'
+    DB_REGION_LATITUDE = 'lat'
+    DB_REGION_LONGITUDE = 'long'
+    DB_REGION_ADDRESS = 'address'
     DB_REGION_LAST_UPDATED = 'last_updated'
     DB_REQUIREMENTS = 'requirements'
     DB_SUMMARY = 'summary'
@@ -82,7 +93,7 @@ class MongoDBPipeline(object):
     JOB_LAST_UPDATED = 'last_updated'
     JOB_OFFER = 'offer'
     JOB_QUERIES = 'queries'
-    JOB_REGIONS = 'regions'
+    JOB_REGION = 'regions'
     JOB_REQUIREMENTS = 'requirements'
     JOB_SUMMARY = 'summary'
     JOB_TITLE = 'title'
@@ -248,7 +259,7 @@ class MongoDBPipeline(object):
             if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
                     and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE) \
                     and item.get(self.JOB_DATE_AVAILABILITY) == stored_item.get(self.JOB_DATE_AVAILABILITY) \
-                    and item.get(self.JOB_REGIONS) == stored_item.get(self.JOB_REGIONS):
+                    and item.get(self.JOB_REGION) == stored_item.get(self.JOB_REGION):
                 # Item is already stored, just update the query.
                 # Merge old queries with new ones.
                 new_query_ids = self.queries_id(item)
@@ -329,7 +340,7 @@ class MongoDBPipeline(object):
             db = self.release_db
 
         # No region has been specified
-        if not item.get(self.JOB_REGIONS):
+        if not item.get(self.JOB_REGION):
             existing_none_specified_region = db.Regions.find_one(
                 {self.DB_REGION_NAME: "None Specified"}
             )
@@ -338,28 +349,38 @@ class MongoDBPipeline(object):
                     {self.DB_ID: bson.ObjectId(existing_none_specified_region[self.DB_ID])},
                     {'$set': {self.DB_REGION_LAST_UPDATED: self.today}}
                 )
-                return [existing_none_specified_region[self.DB_ID]]
+                return existing_none_specified_region[self.DB_ID]
             else:
                 none_region_specified_dict = {self.DB_REGION_NAME: "None Specified",
                                               self.DB_REGION_LAST_UPDATED: self.today}
-                return [db.Regions.insert(none_region_specified_dict)]
+                return db.Regions.insert(none_region_specified_dict)
 
-        region_ids = []
-        for region_name in item.get(self.JOB_REGIONS):
-            existing_region = db.Regions.find_one(
-                {self.DB_REGION_NAME: region_name}
+        existing_region = db.Regions.find_one(
+            {self.DB_REGION_NAME: item.get(self.JOB_REGION)}
+        )
+
+        if existing_region:
+            db.Regions.update(
+                {self.DB_ID: existing_region[self.DB_ID]},
+                {'$set': {self.DB_REGION_LAST_UPDATED: self.today}}
             )
+            region_id = existing_region[self.DB_ID]
+        else:
+            coordinates = self.coordinates(item.get(self.JOB_REGION))
+            region_dict = {self.DB_REGION_NAME: item.get(self.JOB_REGION),
+                           self.DB_REGION_LAST_UPDATED: self.today,
+                           self.DB_REGION_LATITUDE: coordinates.latitude,
+                           self.DB_REGION_LONGITUDE: coordinates.longitude,
+                           self.DB_REGION_ADDRESS: coordinates.address}
+            region_id = db.Regions.insert(region_dict)
+        return region_id
 
-            if existing_region:
-                db.Regions.update(
-                    {self.DB_ID: existing_region[self.DB_ID]},
-                    {'$set': {self.DB_REGION_LAST_UPDATED: self.today}}
-                )
-                region_ids.append(existing_region[self.DB_ID])
-            else:
-                region_dict = {self.DB_REGION_NAME: region_name, self.DB_REGION_LAST_UPDATED: self.today}
-                region_ids.append(db.Regions.insert(region_dict))
-        return region_ids
+    def coordinates(self, region_name):
+        if geolocation_map.get(region_name) is not None:
+            region_name = geolocation_map[region_name]
+        geo_locator = Nominatim(user_agent=self.USER_AGENT)
+        location = geo_locator.geocode(region_name)
+        return location
 
     def queries_id(self, item):
         """

@@ -41,6 +41,16 @@ class DiagnosticumSpider(scrapy.Spider):
     def parse_header(header_element, job):
         title = header_element.xpath("string()").extract_first().strip()
         job['title'] = title
+        if 'Standort' in title:
+            t = title.split("Standort")[1]
+            if 'Kliniken' in t:
+                t = t.split("Kliniken")[1]
+            job['regions'] = t.strip()
+        if 'Laborstandort' in title:
+            t = title.split("Laborstandort")[1]
+            if 'Kliniken' in t:
+                t = t.split("Kliniken")[1]
+            job['regions'] = t.strip()
         return job
 
     @staticmethod
@@ -65,15 +75,7 @@ class DiagnosticumSpider(scrapy.Spider):
                 elif section.startswith("Ihre Bewerbung"):
                     pass
                 elif '@' in section:
-                    job['contact_email'] = re.search(r'[\w\.-]+@[\w\.-]+', section).group(0)
-                elif section.startswith('Diagnosticum'):
-                    postal_re = re.compile(r'[0-9]{3,}')
-                    text_list = selector.xpath("text()").extract()
-                    for text in text_list:
-                        if postal_re.match(text):
-                            job['regions'] = [text.lstrip(digits).strip()]
-                else:
-                    job['area'] = section
+                    job['contact_email'] = re.search(r'[\w.-]+@[\w.-]+', section).group(0)
 
             else:
                 if not summary_finished:
@@ -83,12 +85,11 @@ class DiagnosticumSpider(scrapy.Spider):
                     postal_re = re.compile(r'[0-9]{3,}')
                     tel_re = re.compile(r'^Tel\. \+')
                     for text in text_list:
-                        if postal_re.match(text):
-                            job['regions'] = [text.lstrip(digits).strip()]
+                        if postal_re.match(text) and job.get('regions') is None:
+                            job['regions'] = text.lstrip(digits).strip()
                         elif tel_re.match(text):
                             job['contact_phone'] = text.split(u'\xa0', 1)[0]
 
         job['summary'] = summary
 
         return job
-

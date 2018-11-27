@@ -80,7 +80,7 @@ query_id_map = {
     "131": "Nuklearmedizin",
     "Onkologie": "95",
     "95": "Onkologie",
-    "onkologische Tagesklinik ": "134",
+    "onkologische Tagesklinik": "134",
     "134": "onkologische Tagesklinik ",
     "OP-Assistenz": "155",
     "155": "OP-Assistenz",
@@ -191,7 +191,7 @@ class AmedesSpider(scrapy.Spider):
 
         region = job_container.xpath('div[@class="dmmjobcontrol_list_regio"]').xpath("string()").extract_first()
         if region:
-            job['regions'] = [region.strip()]
+            job['regions'] = region.strip()
 
         """
         summary = job_container.xpath("div[@class='dmmjobcontrol_list_short']").xpath("string()").extract_first()
