@@ -126,7 +126,7 @@ class USZSpider(scrapy.Spider):
 
         self.website_name = 'Uni Spital Zürich'
         self.website_url = self.url
-        self.regions = ['Zürich']
+        self.regions = 'Zürich'
 
         # Queries are passed as a list. Ex: ['Query1', 'Query2'].
         queries = queries.lstrip('[').rstrip(']').split(',')

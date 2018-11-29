@@ -62,6 +62,7 @@ class MongoDBPipeline(object):
     DB_REGION_LATITUDE = 'lat'
     DB_REGION_LONGITUDE = 'long'
     DB_REGION_ADDRESS = 'address'
+    DB_REGION_STATE = 'state'
     DB_REGION_LAST_UPDATED = 'last_updated'
     DB_REQUIREMENTS = 'requirements'
     DB_SUMMARY = 'summary'
@@ -367,11 +368,22 @@ class MongoDBPipeline(object):
             region_id = existing_region[self.DB_ID]
         else:
             coordinates = self.coordinates(item.get(self.JOB_REGION))
+            latitude = ""
+            longitude = ""
+            address = ""
+            state = ""
+            if coordinates is not None:
+                latitude = coordinates.latitude
+                longitude = coordinates.longitude
+                address = coordinates.address
+                state = coordinates.raw['address']['state']
             region_dict = {self.DB_REGION_NAME: item.get(self.JOB_REGION),
                            self.DB_REGION_LAST_UPDATED: self.today,
-                           self.DB_REGION_LATITUDE: coordinates.latitude,
-                           self.DB_REGION_LONGITUDE: coordinates.longitude,
-                           self.DB_REGION_ADDRESS: coordinates.address}
+                           self.DB_REGION_LATITUDE: latitude,
+                           self.DB_REGION_LONGITUDE: longitude,
+                           self.DB_REGION_ADDRESS: address,
+                           self.DB_REGION_STATE: state
+                           }
             region_id = db.Regions.insert(region_dict)
         return region_id
 
@@ -379,7 +391,7 @@ class MongoDBPipeline(object):
         if geolocation_map.get(region_name) is not None:
             region_name = geolocation_map[region_name]
         geo_locator = Nominatim(user_agent=self.USER_AGENT)
-        location = geo_locator.geocode(region_name)
+        location = geo_locator.geocode(region_name, addressdetails=True)
         return location
 
     def queries_id(self, item):
