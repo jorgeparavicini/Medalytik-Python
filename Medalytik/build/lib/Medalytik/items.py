@@ -35,3 +35,6 @@ class JobItem(scrapy.Item):
     info = scrapy.Field()
     info_phone = scrapy.Field()
     info_email = scrapy.Field()
+    schedule = scrapy.Field()
+    offering_type = scrapy.Field()
+    organization = scrapy.Field()

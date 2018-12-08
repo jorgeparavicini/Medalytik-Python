@@ -119,7 +119,7 @@ id_query_name_map = {
 class USZSpider(scrapy.Spider):
     name = 'usz'
 
-    def __init__(self, queries):
+    def __init__(self, queries, debug="1"):
         super(USZSpider, self).__init__(self.name)
 
         self.url = 'http://jobs.usz.ch'
@@ -127,6 +127,8 @@ class USZSpider(scrapy.Spider):
         self.website_name = 'Uni Spital Zürich'
         self.website_url = self.url
         self.regions = 'Zürich'
+
+        self.debug = debug == "1"
 
         # Queries are passed as a list. Ex: ['Query1', 'Query2'].
         queries = queries.lstrip('[').rstrip(']').split(',')
@@ -180,7 +182,7 @@ class USZSpider(scrapy.Spider):
 
     def parse_job_container(self, job_container, query):
         job = JobItem()
-        job['in_development'] = False
+        job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
         job['queries'] = [id_query_name_map[query]]

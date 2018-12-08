@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+#
+#  amedes.py
+#  Medalytik
+#
+#  Created by Jorge Paravicini on 10.06.18.
+#  Copyright © 2018 Jorge Paravicini. All rights reserved.
+#
+
 import scrapy
 from ..items import JobItem
 
@@ -140,13 +149,15 @@ def url_from_query(query, page=1):
 class AmedesSpider(scrapy.Spider):
     name = 'amedes'
 
-    def __init__(self, queries):
+    def __init__(self, queries, debug="1"):
         super(AmedesSpider, self).__init__(self.name)
 
         self.url = url
 
         self.website_name = "Amedes"
         self.website_url = self.url
+
+        self.debug = debug == "1"
 
         queries = queries.lstrip('[').rstrip(']').split(',')
         self.queries = []
@@ -184,7 +195,7 @@ class AmedesSpider(scrapy.Spider):
 
     def parse_job_container(self, job_container, query):
         job = JobItem()
-        job['in_development'] = False
+        job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
         job['queries'] = [query_id_map[query]]

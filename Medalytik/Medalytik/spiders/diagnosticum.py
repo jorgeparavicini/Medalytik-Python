@@ -8,12 +8,13 @@ from ..items import JobItem
 class DiagnosticumSpider(scrapy.Spider):
     name = 'diagnosticum'
 
-    def __init__(self):
+    def __init__(self, debug="1"):
         super(DiagnosticumSpider, self).__init__(self.name)
 
         self.url = "https://www.diagnosticum.eu/diagnosticum/stellenangebote"
         self.website_name = "Diagnosticum"
         self.website_url = self.url
+        self.debug = debug == "1"
 
     def start_requests(self):
         yield scrapy.Request(self.url,
@@ -30,7 +31,7 @@ class DiagnosticumSpider(scrapy.Spider):
 
     def parse_job(self, header_element, body_element):
         job = JobItem()
-        job['in_development'] = False
+        job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
         job = self.parse_header(header_element, job)

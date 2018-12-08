@@ -15,7 +15,8 @@ time_format = '%d %m %Y'
 
 
 geolocation_map = {
-    "Halle": "Halle Deutschland"
+    "Halle": "Halle Deutschland",
+    "Gauting": "Gauting Deutschland"
 }
 
 
@@ -183,7 +184,7 @@ class MongoDBPipeline(object):
 
         # Already stored job
         stored_item = self.update_stored_item(item)
-        if stored_item:
+        if stored_item is not None:
             return stored_item
 
         # Job has not yet been saved today
@@ -229,7 +230,7 @@ class MongoDBPipeline(object):
 
         existing_job = db.Jobs.find_one(
             {self.DB_WEBSITE_ID: website_id,
-             self.DB_TITLE: item[self.JOB_TITLE]}
+             self.DB_TITLE: item.get(self.JOB_TITLE)}
         )
 
         if existing_job:
@@ -255,7 +256,7 @@ class MongoDBPipeline(object):
             stored_item_list = self.stored_release_items
 
         for stored_item, _id in stored_item_list.items():
-            # Since we can not check for every single attribute we just check for the title and the website name.
+            # Check for the title and the website name.
             # If they are the same we treat the job as equals.
             if item.get(self.JOB_WEBSITE_NAME) == stored_item.get(self.JOB_WEBSITE_NAME) \
                     and item.get(self.JOB_TITLE) == stored_item.get(self.JOB_TITLE) \
@@ -367,7 +368,7 @@ class MongoDBPipeline(object):
             )
             region_id = existing_region[self.DB_ID]
         else:
-            coordinates = self.coordinates(item.get(self.JOB_REGION))
+            coordinates = self.location(item.get(self.JOB_REGION))
             latitude = ""
             longitude = ""
             address = ""
@@ -376,7 +377,10 @@ class MongoDBPipeline(object):
                 latitude = coordinates.latitude
                 longitude = coordinates.longitude
                 address = coordinates.address
-                state = coordinates.raw['address']['state']
+                a = coordinates.raw.get('address')
+                state = None
+                if a is not None:
+                    state = a.get('state')
             region_dict = {self.DB_REGION_NAME: item.get(self.JOB_REGION),
                            self.DB_REGION_LAST_UPDATED: self.today,
                            self.DB_REGION_LATITUDE: latitude,
@@ -387,7 +391,7 @@ class MongoDBPipeline(object):
             region_id = db.Regions.insert(region_dict)
         return region_id
 
-    def coordinates(self, region_name):
+    def location(self, region_name):
         if geolocation_map.get(region_name) is not None:
             region_name = geolocation_map[region_name]
         geo_locator = Nominatim(user_agent=self.USER_AGENT)
@@ -406,7 +410,7 @@ class MongoDBPipeline(object):
         else:
             db = self.release_db
 
-        if not item.get(self.JOB_QUERIES):
+        if not item.get(self.JOB_QUERIES) or MongoDBPipeline.is_empty_list(item.get(self.JOB_QUERIES)):
             existing_none_specified_query = db.Queries.find_one(
                 {self.DB_QUERY_NAME: "None Specified"}
             )
@@ -437,6 +441,13 @@ class MongoDBPipeline(object):
                 query_id = db.Queries.insert(query_dict)
                 query_ids.append(query_id)
         return query_ids
+
+    @staticmethod
+    def is_empty_list(l):
+        for item in l:
+            if item:
+                return False
+        return True
 
     def contact_id(self, item):
         """
