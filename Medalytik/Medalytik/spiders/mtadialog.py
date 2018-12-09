@@ -6,7 +6,7 @@
 #  Created by Jorge Paravicini on 12/6/2018.
 #  Copyright © 2018 Jorge Paravicini. All rights reserved.
 #
-#  See license file for further information.
+#  
 #
 
 import scrapy
@@ -43,14 +43,14 @@ class MTADialogSpider(scrapy.Spider):
         scrapy crawl mta_dialog -a queries="YOUR_QUERIES_SEPARATED_BY_A_COMMA"
     """
     # The name of the spider, needed to be invoked.
-    name = 'mta_dialog'
+    name: str = 'mta_dialog'
     # The default path to the job offers website.
-    url = 'https://www.mta-dialog.de/stellenmarkt.html'
+    url: str = 'https://www.mta-dialog.de/stellenmarkt.html'
 
     # The display name of the website.
-    website_name = "MTA Dialog"
+    website_name: str = "MTA Dialog"
     # The home url to the website.
-    website_url = 'https://www.mta-dialog.de'
+    website_url: str = 'https://www.mta-dialog.de'
 
     @property
     def next_url(self) -> str:
@@ -65,7 +65,7 @@ class MTADialogSpider(scrapy.Spider):
         """
         return 'https://www.mta-dialog.de/stellenmarkt.html?tx_jobs_pi1[action]=next'
 
-    def __init__(self, queries="", debug="1"):
+    def __init__(self, queries: str="", debug: str="1"):
         """
         Initialize a new spider to crawl MTA Dialog.
 
@@ -84,7 +84,7 @@ class MTADialogSpider(scrapy.Spider):
         self.queries = queries.split(',')
 
     @staticmethod
-    def query_url(query):
+    def query_url(query: str) -> str:
         """
         Creates an url with the specified query. When requested, the result will be stored in the cookie jar.
         Make sure not to reset cookies.
@@ -94,9 +94,9 @@ class MTADialogSpider(scrapy.Spider):
         """
         base_url = "https://www.mta-dialog.de/stellenmarkt.html?tx_jobs_pi1%5Baction%5D=fullTextSearch&" \
                    "tx_jobs_pi1[value]="
-        return base_url + str(query)
+        return base_url + query
 
-    def start_requests(self):
+    def start_requests(self) -> scrapy.http.Request:
         """
         Starts the scraper.
 
@@ -114,7 +114,7 @@ class MTADialogSpider(scrapy.Spider):
                                        'queries': [query]},
                                  dont_filter=True)
 
-    def parse(self, response):
+    def parse(self, response: scrapy.http.Response):
         """
         After the request has been processed by the scrapy framework, the response will be passed here.
 
@@ -136,7 +136,7 @@ class MTADialogSpider(scrapy.Spider):
                                  dont_filter=True)
 
     @staticmethod
-    def has_next_page(response):
+    def has_next_page(response: scrapy.http.Response):
         """
         Checks whether the response object contains the button for the next page.
         We identify the next object by a class named: "glyphControl glyphPaginationNext"
@@ -149,7 +149,7 @@ class MTADialogSpider(scrapy.Spider):
         next_buttons = response.xpath('//span[@class="glyphControl glyphPaginationNext"]').extract()
         return bool(next_buttons)
 
-    def parse_jobs(self, response):
+    def parse_jobs(self, response: scrapy.http.Response):
         """
         Parses all jobs in the current response html body.
 
@@ -191,7 +191,7 @@ class MTADialogSpider(scrapy.Spider):
         return job
 
     @staticmethod
-    def parse_job(content, job):
+    def parse_job(content: scrapy.selector.Selector, job: JobItem):
         """
         Parses a job container from a scrapy response.
 
@@ -212,7 +212,7 @@ class MTADialogSpider(scrapy.Spider):
         return MTADialogSpider.parse_job_details(job)
 
     @staticmethod
-    def parse_job_details(job):
+    def parse_job_details(job: JobItem):
         """
         Checks whether the detail parser for the organization of the passed job has been implemented.
         If so return the job with the filled out details.
@@ -228,7 +228,7 @@ class MTADialogSpider(scrapy.Spider):
             yield job
 
     @staticmethod
-    def parse_orgentec(response):
+    def parse_orgentec(response: scrapy.http.Response):
         """
         Parses the details for the orgentec organization.
 
