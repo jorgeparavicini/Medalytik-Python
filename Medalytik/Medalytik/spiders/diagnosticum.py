@@ -2,7 +2,7 @@ import scrapy
 import re
 from string import digits
 
-from ..items import JobItem
+from ..items import Job
 
 
 class DiagnosticumSpider(scrapy.Spider):
@@ -30,7 +30,7 @@ class DiagnosticumSpider(scrapy.Spider):
             yield self.parse_job(job_element_list[i], job_element_list[i + 1])
 
     def parse_job(self, header_element, body_element):
-        job = JobItem()
+        job = Job()
         job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url

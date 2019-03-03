@@ -8,7 +8,7 @@
 #
 
 import scrapy
-from ..items import JobItem
+from ..items import Job
 
 query_id_map = {
     "Abrechnung": "31",
@@ -194,7 +194,7 @@ class AmedesSpider(scrapy.Spider):
                                            'page': page})
 
     def parse_job_container(self, job_container, query):
-        job = JobItem()
+        job = Job()
         job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url
@@ -203,12 +203,6 @@ class AmedesSpider(scrapy.Spider):
         region = job_container.xpath('div[@class="dmmjobcontrol_list_regio"]').xpath("string()").extract_first()
         if region:
             job['regions'] = region.strip()
-
-        """
-        summary = job_container.xpath("div[@class='dmmjobcontrol_list_short']").xpath("string()").extract_first()
-        if summary:
-            job['summary'] = summary.strip()
-        """
 
         title = job_container.xpath("div[@class='dmmjobcontrol_list_title']").xpath("string()").extract_first()
         if title:

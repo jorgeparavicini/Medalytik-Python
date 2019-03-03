@@ -12,7 +12,7 @@ import re
 
 import scrapy
 
-from ..items import JobItem
+from ..items import Job
 from . import error_back
 
 query_id_map = {
@@ -181,7 +181,7 @@ class USZSpider(scrapy.Spider):
             return
 
     def parse_job_container(self, job_container, query):
-        job = JobItem()
+        job = Job()
         job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url

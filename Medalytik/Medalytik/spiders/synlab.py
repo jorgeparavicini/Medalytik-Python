@@ -13,7 +13,7 @@ import json
 import scrapy
 import scrapy.shell
 
-from ..items import JobItem
+from ..items import Job
 
 
 class SynlabSpider(scrapy.Spider):
@@ -68,7 +68,7 @@ class SynlabSpider(scrapy.Spider):
                 yield element
 
     def init_job_item(self):
-        job = JobItem()
+        job = Job()
         job['in_development'] = self.debug
         job['website_name'] = self.website_name
         job['website_url'] = self.website_url

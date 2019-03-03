@@ -10,7 +10,7 @@
 import scrapy
 
 
-class JobItem(scrapy.Item):
+class Job(scrapy.Item):
     in_development = scrapy.Field()
     about = scrapy.Field()
     area = scrapy.Field()

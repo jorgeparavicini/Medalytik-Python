@@ -6,12 +6,12 @@
 #  Created by Jorge Paravicini on 12/6/2018.
 #  Copyright © 2018 Jorge Paravicini. All rights reserved.
 #
-#  
+#
 #
 
 import scrapy
 
-from ..items import JobItem
+from ..items import Job
 
 
 class MTADialogSpider(scrapy.Spider):
@@ -182,7 +182,7 @@ class MTADialogSpider(scrapy.Spider):
 
         :return: The job element initialized with default values concerning this website.
         """
-        job = JobItem()
+        job = Job()
 
         job['in_development'] = self.debug
         job['website_name'] = self.website_name
@@ -191,7 +191,7 @@ class MTADialogSpider(scrapy.Spider):
         return job
 
     @staticmethod
-    def parse_job(content: scrapy.selector.Selector, job: JobItem):
+    def parse_job(content: scrapy.selector.Selector, job: Job):
         """
         Parses a job container from a scrapy response.
 
@@ -212,7 +212,7 @@ class MTADialogSpider(scrapy.Spider):
         return MTADialogSpider.parse_job_details(job)
 
     @staticmethod
-    def parse_job_details(job: JobItem):
+    def parse_job_details(job: Job):
         """
         Checks whether the detail parser for the organization of the passed job has been implemented.
         If so return the job with the filled out details.
